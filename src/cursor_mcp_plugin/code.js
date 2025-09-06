@@ -229,6 +229,14 @@ async function handleCommand(command, params) {
       return await setDefaultConnector(params);
     case "create_connections":
       return await createConnections(params);
+    case "get_flow_start_points":
+      return await getFlowStartPoints(params);
+    case "set_flow_start_point":
+      return await setFlowStartPoint(params);
+    case "clear_flow_start_point":
+      return await clearFlowStartPoint(params);
+    case "add_prototype_navigation":
+      return await addPrototypeNavigation(params);
     case "set_focus":
       return await setFocus(params);
     case "set_selections":
@@ -4025,4 +4033,122 @@ async function setSelections(params) {
     notFoundIds: notFoundIds,
     message: `Selected ${nodes.length} nodes${notFoundIds.length > 0 ? ` (${notFoundIds.length} not found)` : ''}`
   };
+}
+
+// --- Prototyping: Flow start points ---
+async function getFlowStartPoints(params) {
+  const { pageId } = params || {};
+  const page = pageId ? await figma.getNodeByIdAsync(pageId) : figma.currentPage;
+  if (!page || page.type !== 'PAGE') {
+    throw new Error('Page not found');
+  }
+
+  const flows = page.flowStartingPoints || [];
+  const mapped = flows.map(fp => ({
+    nodeId: fp.nodeId,
+    flowStartingPointId: fp.id,
+    name: fp.name || null
+  }));
+  return { pageId: page.id, count: mapped.length, flows: mapped };
+}
+
+async function setFlowStartPoint(params) {
+  const { nodeId, name } = params || {};
+  if (!nodeId) throw new Error('Missing nodeId');
+  const node = await figma.getNodeByIdAsync(nodeId);
+  if (!node) throw new Error(`Node not found: ${nodeId}`);
+  if (node.type !== 'FRAME' && node.type !== 'COMPONENT' && node.type !== 'COMPONENT_SET' && node.type !== 'INSTANCE') {
+    throw new Error('Start point must be set on FRAME/COMPONENT/INSTANCE');
+  }
+
+  const page = figma.currentPage;
+  const flows = page.flowStartingPoints || [];
+  const exists = flows.find(fp => fp.nodeId === nodeId);
+  if (exists) {
+    if (name) exists.name = name;
+    page.flowStartingPoints = flows;
+    return { success: true, updated: true, nodeId, name: exists.name || null };
+  }
+
+  const newStart = { nodeId, name: name || 'Flow' };
+  page.flowStartingPoints = [...flows, newStart];
+  return { success: true, created: true, nodeId, name: newStart.name };
+}
+
+async function clearFlowStartPoint(params) {
+  const { pageId, nodeId, name, clearAll } = params || {};
+  const page = pageId ? await figma.getNodeByIdAsync(pageId) : figma.currentPage;
+  if (!page || page.type !== 'PAGE') {
+    throw new Error('Page not found');
+  }
+  const flows = page.flowStartingPoints || [];
+  if (clearAll) {
+    page.flowStartingPoints = [];
+    return { success: true, cleared: flows.length };
+  }
+
+  let remaining = flows;
+  if (nodeId) remaining = remaining.filter(fp => fp.nodeId !== nodeId);
+  if (name) remaining = remaining.filter(fp => (fp.name || null) !== name);
+  const cleared = flows.length - remaining.length;
+  page.flowStartingPoints = remaining;
+  return { success: true, cleared };
+}
+
+// Add a prototype NAVIGATE reaction (best-effort; falls back to visual connector)
+async function addPrototypeNavigation(params) {
+  const { sourceNodeId, destinationNodeId, triggerType, preserveScrollPosition } = params || {};
+  if (!sourceNodeId || !destinationNodeId) {
+    throw new Error('Missing sourceNodeId or destinationNodeId');
+  }
+
+  const source = await figma.getNodeByIdAsync(sourceNodeId);
+  const destination = await figma.getNodeByIdAsync(destinationNodeId);
+  if (!source) throw new Error(`Source not found: ${sourceNodeId}`);
+  if (!destination) throw new Error(`Destination not found: ${destinationNodeId}`);
+
+  // Try native reaction first if available
+  try {
+    const t = (triggerType || 'ON_CLICK');
+    const action = {
+      type: 'NAVIGATE',
+      destinationId: destination.id,
+      preserveScrollPosition: !!preserveScrollPosition
+    };
+    const reaction = { trigger: { type: t }, action };
+
+    if ('reactions' in source) {
+      const existing = Array.isArray(source.reactions) ? source.reactions : [];
+      source.reactions = [...existing, reaction];
+      return { success: true, method: 'reaction', triggerType: t, destinationId: destination.id };
+    }
+  } catch (e) {
+    // fall through to connector fallback
+  }
+
+  // Fallback: create a visual connector using the default connector settings and label
+  try {
+    const defaultConnectorId = await figma.clientStorage.getAsync('defaultConnectorId');
+    if (!defaultConnectorId) {
+      return { success: false, method: 'fallback-connector', error: 'No default connector set' };
+    }
+    const defaultConnector = await figma.getNodeByIdAsync(defaultConnectorId);
+    if (!defaultConnector || defaultConnector.type !== 'CONNECTOR') {
+      return { success: false, method: 'fallback-connector', error: 'Default connector invalid' };
+    }
+
+    const cloned = defaultConnector.clone();
+    // Connect ends
+    cloned.connectorStart = { endpointNodeId: source.id, magnet: 'AUTO' };
+    cloned.connectorEnd = { endpointNodeId: destination.id, magnet: 'AUTO' };
+    if (cloned.text) {
+      try {
+        if (cloned.text.fontName) await figma.loadFontAsync(cloned.text.fontName);
+      } catch(e) {}
+      cloned.text.characters = 'On click: NAVIGATE';
+    }
+    return { success: true, method: 'connector', connectorId: cloned.id };
+  } catch (e) {
+    return { success: false, error: (e && e.message) ? e.message : String(e) };
+  }
 }
