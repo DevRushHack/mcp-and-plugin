@@ -38,7 +38,6 @@ export function useBunStatus() {
       setLoading(true);
       setError(null);
       await invoke<string>('install_bun');
-      // Recheck status after installation
       await checkBun();
     } catch (err) {
       setError(err as string);
