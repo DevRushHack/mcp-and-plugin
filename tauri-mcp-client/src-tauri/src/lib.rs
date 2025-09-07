@@ -1,6 +1,8 @@
 use std::process::Command;
 use tauri::Manager;
 use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
+use std::process::Child;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BunStatus {
@@ -15,6 +17,17 @@ pub struct McpServerStatus {
     pub port: Option<u16>,
     pub pid: Option<u32>,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FastAPIStatus {
+    pub running: bool,
+    pub port: Option<u16>,
+    pub pid: Option<u32>,
+    pub health_check_url: Option<String>,
+}
+
+// Global state for FastAPI process
+type FastAPIProcess = Arc<Mutex<Option<Child>>>;
 
 // Helper function to get Bun executable path
 fn get_bun_path() -> Result<String, String> {
@@ -32,6 +45,25 @@ fn get_bun_path() -> Result<String, String> {
     }
     
     Err("Bun executable not found".to_string())
+}
+
+// Helper function to get Python executable path
+fn get_python_path() -> Result<String, String> {
+    // Try python3.11 first (preferred), then python3, then python
+    for python_cmd in &["python3.11", "python3", "python"] {
+        if let Ok(python_path) = which::which(python_cmd) {
+            // Verify it's a compatible version
+            if let Ok(output) = Command::new(&python_path).arg("--version").output() {
+                if output.status.success() {
+                    let version_str = String::from_utf8_lossy(&output.stdout);
+                    log::info!("Found Python: {} ({})", python_path.display(), version_str.trim());
+                    return Ok(python_path.to_string_lossy().to_string());
+                }
+            }
+        }
+    }
+    
+    Err("Python executable not found".to_string())
 }
 
 #[tauri::command]
@@ -260,11 +292,242 @@ async fn get_mcp_server_status() -> Result<McpServerStatus, String> {
     }
 }
 
+// FastAPI Server Management Functions
+
+#[tauri::command]
+async fn start_fastapi_server(app_handle: tauri::AppHandle) -> Result<String, String> {
+    let fastapi_process: FastAPIProcess = app_handle.state::<FastAPIProcess>().inner().clone();
+    
+    // Check if already running
+    {
+        let mut process = fastapi_process.lock().unwrap();
+        if let Some(child) = process.as_mut() {
+            if let Ok(None) = child.try_wait() {
+                return Ok("FastAPI server is already running".to_string());
+            }
+        }
+    }
+
+    // Find the FastAPI directory - try multiple locations
+    let mut fastapi_dir = None;
+    
+    // First try getting from current working directory (development)
+    if let Ok(current_dir) = std::env::current_dir() {
+        log::info!("Current directory: {:?}", current_dir);
+        
+        // Try relative path from src-tauri directory
+        let dev_fastapi_dir = current_dir
+            .parent() // from src-tauri to tauri-mcp-client
+            .map(|p| p.join("resource/mcp-client-python/api"));
+            
+        if let Some(dir) = dev_fastapi_dir {
+            log::info!("Checking dev FastAPI dir: {:?}", dir);
+            if dir.exists() {
+                fastapi_dir = Some(dir);
+            }
+        }
+    }
+    
+    // If not found in dev, try resource directory (production)
+    if fastapi_dir.is_none() {
+        if let Ok(resource_dir) = app_handle.path().resource_dir() {
+            log::info!("Resource directory: {:?}", resource_dir);
+            let resource_fastapi_dir = resource_dir
+                .parent()
+                .map(|p| p.join("resource/mcp-client-python/api"));
+                
+            if let Some(dir) = resource_fastapi_dir {
+                log::info!("Checking resource FastAPI dir: {:?}", dir);
+                if dir.exists() {
+                    fastapi_dir = Some(dir);
+                }
+            }
+        }
+    }
+
+    let fastapi_dir = fastapi_dir.ok_or("FastAPI directory not found. Expected at resource/mcp-client-python/api")?;
+    log::info!("Using FastAPI directory: {:?}", fastapi_dir);
+
+    // Check if requirements.txt exists
+    let requirements_file = fastapi_dir.join("requirements.txt");
+    if !requirements_file.exists() {
+        return Err("requirements.txt not found in FastAPI directory".to_string());
+    }
+
+    // Get Python path
+    let python_path = get_python_path()?;
+    log::info!("Using Python: {}", python_path);
+
+    // Create virtual environment if it doesn't exist
+    let venv_dir = fastapi_dir.join("venv");
+    if !venv_dir.exists() {
+        log::info!("Creating Python virtual environment...");
+        let output = Command::new(&python_path)
+            .args(&["-m", "venv", "venv"])
+            .current_dir(&fastapi_dir)
+            .output()
+            .map_err(|e| format!("Failed to create virtual environment: {}", e))?;
+
+        if !output.status.success() {
+            return Err(format!("Failed to create virtual environment: {}", 
+                String::from_utf8_lossy(&output.stderr)));
+        }
+        log::info!("Virtual environment created successfully");
+    } else {
+        log::info!("Virtual environment already exists");
+    }
+
+    // Get the Python executable from the virtual environment
+    let venv_python = if cfg!(windows) {
+        venv_dir.join("Scripts/python.exe")
+    } else {
+        venv_dir.join("bin/python")
+    };
+
+    if !venv_python.exists() {
+        return Err(format!("Virtual environment Python not found at: {:?}", venv_python));
+    }
+
+    // Install dependencies
+    log::info!("Installing FastAPI dependencies...");
+    let pip_install = Command::new(&venv_python)
+        .args(&["-m", "pip", "install", "-r", "requirements.txt"])
+        .current_dir(&fastapi_dir)
+        .output()
+        .map_err(|e| format!("Failed to install dependencies: {}", e))?;
+
+    if !pip_install.status.success() {
+        log::warn!("Pip install had issues: {}", String::from_utf8_lossy(&pip_install.stderr));
+        // Don't fail here, continue to try starting the server
+    } else {
+        log::info!("Dependencies installed successfully");
+    }
+
+    // Install the parent package if pyproject.toml exists
+    let parent_dir = fastapi_dir.parent().unwrap();
+    if parent_dir.join("pyproject.toml").exists() {
+        log::info!("Installing parent package...");
+        let parent_install = Command::new(&venv_python)
+            .args(&["-m", "pip", "install", "-e", "."])
+            .current_dir(parent_dir)
+            .output();
+        
+        match parent_install {
+            Ok(output) => {
+                if output.status.success() {
+                    log::info!("Parent package installed successfully");
+                } else {
+                    log::warn!("Parent package install had issues: {}", String::from_utf8_lossy(&output.stderr));
+                }
+            }
+            Err(e) => log::warn!("Failed to install parent package: {}", e),
+        }
+    }
+
+    // Check if main.py exists
+    let main_py = fastapi_dir.join("main.py");
+    if !main_py.exists() {
+        return Err("main.py not found in FastAPI directory".to_string());
+    }
+
+    // Start the FastAPI server
+    log::info!("Starting FastAPI server...");
+    let mut child = Command::new(&venv_python)
+        .arg("main.py")
+        .current_dir(&fastapi_dir)
+        .spawn()
+        .map_err(|e| format!("Failed to start FastAPI server: {}", e))?;
+
+    let pid = child.id();
+    log::info!("FastAPI server started with PID: {}", pid);
+    
+    // Store the process
+    {
+        let mut process = fastapi_process.lock().unwrap();
+        *process = Some(child);
+    }
+
+    Ok(format!("FastAPI server started with PID: {}", pid))
+}
+
+#[tauri::command]
+async fn stop_fastapi_server(app_handle: tauri::AppHandle) -> Result<String, String> {
+    let fastapi_process: FastAPIProcess = app_handle.state::<FastAPIProcess>().inner().clone();
+    
+    let mut process = fastapi_process.lock().unwrap();
+    if let Some(mut child) = process.take() {
+        match child.kill() {
+            Ok(_) => {
+                let _ = child.wait();
+                Ok("FastAPI server stopped".to_string())
+            }
+            Err(e) => Err(format!("Failed to stop FastAPI server: {}", e))
+        }
+    } else {
+        Ok("FastAPI server is not running".to_string())
+    }
+}
+
+#[tauri::command]
+async fn get_fastapi_server_status(app_handle: tauri::AppHandle) -> Result<FastAPIStatus, String> {
+    let fastapi_process: FastAPIProcess = app_handle.state::<FastAPIProcess>().inner().clone();
+    
+    let mut process = fastapi_process.lock().unwrap();
+    if let Some(child) = process.as_mut() {
+        match child.try_wait() {
+            Ok(None) => {
+                // Process is still running
+                Ok(FastAPIStatus {
+                    running: true,
+                    port: Some(8000),
+                    pid: Some(child.id()),
+                    health_check_url: Some("http://localhost:8000/health".to_string()),
+                })
+            }
+            Ok(Some(_)) => {
+                // Process has exited
+                *process = None;
+                Ok(FastAPIStatus {
+                    running: false,
+                    port: None,
+                    pid: None,
+                    health_check_url: None,
+                })
+            }
+            Err(e) => Err(format!("Failed to check process status: {}", e))
+        }
+    } else {
+        Ok(FastAPIStatus {
+            running: false,
+            port: None,
+            pid: None,
+            health_check_url: None,
+        })
+    }
+}
+
+#[tauri::command]
+async fn check_fastapi_health() -> Result<bool, String> {
+    // Try to make a health check request
+    use std::time::Duration;
+    
+    tokio::time::timeout(Duration::from_secs(5), async {
+        // Simple TCP connection check
+        tokio::net::TcpStream::connect("127.0.0.1:8000").await
+    })
+    .await
+    .map(|result| result.is_ok())
+    .unwrap_or(false)
+    .then_some(true)
+    .ok_or_else(|| "Health check failed".to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
+        .manage(FastAPIProcess::new(Mutex::new(None)))
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -309,6 +572,12 @@ pub fn run() {
                     Ok(msg) => log::info!("Auto-started MCP server: {}", msg),
                     Err(e) => log::error!("Failed to auto-start MCP server: {}", e),
                 }
+
+                // Start FastAPI server
+                match start_fastapi_server(app_handle.clone()).await {
+                    Ok(msg) => log::info!("Auto-started FastAPI server: {}", msg),
+                    Err(e) => log::error!("Failed to auto-start FastAPI server: {}", e),
+                }
             });
 
             Ok(())
@@ -319,7 +588,11 @@ pub fn run() {
             install_mcp_server,
             start_mcp_server,
             check_mcp_server_installation,
-            get_mcp_server_status
+            get_mcp_server_status,
+            start_fastapi_server,
+            stop_fastapi_server,
+            get_fastapi_server_status,
+            check_fastapi_health
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

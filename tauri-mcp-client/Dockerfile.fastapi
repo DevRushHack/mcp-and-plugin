@@ -1,0 +1,19 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copy requirements first for better caching
+COPY resource/mcp-client-python/pyproject.toml ./
+COPY resource/mcp-client-python/api/requirements.txt ./requirements.txt
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the application code
+COPY resource/mcp-client-python/ ./
+
+# Expose the FastAPI port
+EXPOSE 8000
+
+# Command to run the FastAPI server
+CMD ["python", "api/main.py"]

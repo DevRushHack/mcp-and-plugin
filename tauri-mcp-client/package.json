@@ -9,12 +9,21 @@
     "lint": "eslint",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "fastapi:setup": "./scripts/setup-and-run-fastapi.sh",
+    "fastapi:dev": "cd resource/mcp-client-python/api && source venv/bin/activate && python main.py",
+    "fastapi:create-venv": "cd resource/mcp-client-python/api && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt",
+    "fastapi:rebuild": "./scripts/rebuild-fastapi-env.sh",
+    "dev:all": "concurrently \"npm run dev\" \"npm run fastapi:setup\"",
+    "tauri:dev:all": "concurrently \"npm run tauri:dev\" \"npm run fastapi:setup\"",
+    "tauri:dev:auto": "tauri dev",
+    "test:fastapi": "cd resource/mcp-client-python/api && source venv/bin/activate && python -c \"import main; print('FastAPI imports OK')\""
   },
   "dependencies": {
     "@tauri-apps/api": "^2.8.0",
     "@tauri-apps/plugin-fs": "^2.4.2",
     "@tauri-apps/plugin-shell": "^2.3.1",
+    "concurrently": "^9.2.1",
     "next": "15.5.2",
     "react": "19.1.0",
     "react-dom": "19.1.0"

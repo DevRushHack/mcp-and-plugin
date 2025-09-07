@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import ServerStatus from '@/components/ServerStatus';
 import ToolExplorer from '@/components/ToolExplorer';
+import FastAPIManager from '@/components/FastAPIManager';
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'status' | 'explorer'>('status');
+  const [activeTab, setActiveTab] = useState<'status' | 'explorer' | 'fastapi'>('status');
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -43,6 +44,16 @@ export default function Home() {
                 >
                   Tool Explorer
                 </button>
+                <button
+                  onClick={() => setActiveTab('fastapi')}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    activeTab === 'fastapi'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  FastAPI Server
+                </button>
               </div>
             </div>
           </div>
@@ -75,6 +86,19 @@ export default function Home() {
               </p>
             </div>
             <ToolExplorer />
+          </div>
+        )}
+
+        {activeTab === 'fastapi' && (
+          <div className="space-y-8">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">FastAPI Server</h2>
+              <p className="text-gray-600 max-w-3xl">
+                Direct connection to the FastAPI server for MCP operations. This provides a REST API 
+                interface to interact with the Figma MCP server.
+              </p>
+            </div>
+            <FastAPIManager />
           </div>
         )}
       </main>
