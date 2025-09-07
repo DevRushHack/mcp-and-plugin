@@ -173,7 +173,7 @@ async def process_query(request: QueryRequest):
         print(f"Processing query: {request.query}")
         print(f"Session ID: {request.session_id}")
         
-        result = await app.state.client.process_query(request.query, request.session_id)
+        result = await app.state.client.process_query_with_progress(request.query, request.session_id)
         print(f"Query result: {result}")
         
         return result
