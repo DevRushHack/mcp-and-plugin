@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import ServerStatus from '@/components/ServerStatus';
-import ToolExplorer from '@/components/ToolExplorer';
+
 import FastAPIManager from '@/components/FastAPIManager';
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'status' | 'explorer' | 'fastapi'>('status');
+  const [activeTab, setActiveTab] = useState<'status'  | 'fastapi'>('status');
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -18,7 +18,7 @@ export default function Home() {
             <div className="flex items-center">
               
               <h1 className="text-3xl font-bold text-gray-900">
-                Figma MCP Client
+                WireCraft
               </h1>
               <div className="ml-4 px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
                 v0.1.0
@@ -34,18 +34,9 @@ export default function Home() {
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
-                  Server Status
+                  🏠 Home
                 </button>
-                <button
-                  onClick={() => setActiveTab('explorer')}
-                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                    activeTab === 'explorer'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Tool Explorer
-                </button>
+                
                 <button
                   onClick={() => setActiveTab('fastapi')}
                   className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
@@ -54,7 +45,7 @@ export default function Home() {
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
-                  FastAPI Server
+                  Create ✨
                 </button>
               </div>
             </div>
@@ -67,7 +58,7 @@ export default function Home() {
         {activeTab === 'status' && (
           <div className="space-y-8">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome to Figma MCP Client</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome to WireCraft</h2>
               <p className="text-gray-600 max-w-3xl">
                 This application provides a Model Context Protocol (MCP) client for interacting with Figma. 
                 It automatically manages the MCP server, ensures Bun runtime is installed, and provides 
@@ -78,26 +69,13 @@ export default function Home() {
           </div>
         )}
 
-        {activeTab === 'explorer' && (
-          <div className="space-y-8">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">MCP Tool Explorer</h2>
-              <p className="text-gray-600 max-w-3xl">
-                Explore and execute available MCP tools for Figma interaction. Make sure your MCP server 
-                is running and connected to your Figma plugin before using these tools.
-              </p>
-            </div>
-            <ToolExplorer />
-          </div>
-        )}
 
         {activeTab === 'fastapi' && (
           <div className="space-y-8">
-            <div>
+            <div className="text-center">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">FastAPI Server</h2>
-              <p className="text-gray-600 max-w-3xl">
-                Direct connection to the FastAPI server for MCP operations. This provides a REST API 
-                interface to interact with the Figma MCP server.
+              <p className="text-gray-600 max-w-3xl text-center mx-auto">
+                Create amazing UI with ease using WireCraft! with our MCP integration.
               </p>
             </div>
             <FastAPIManager />
@@ -105,7 +83,7 @@ export default function Home() {
         )}
       </main>
 
-      {/* Footer */}
+      {/* Footer
       <footer className="bg-white border-t mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
@@ -142,7 +120,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-      </footer>
+      </footer> */}
     </div>
   );
 }

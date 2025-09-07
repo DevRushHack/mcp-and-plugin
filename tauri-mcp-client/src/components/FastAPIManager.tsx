@@ -284,7 +284,7 @@ export default function FastAPIManager() {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-4">FastAPI Server Manager</h2>
+        <h2 className="text-2xl font-bold mb-4">Create Wire Frames ✨</h2>
         
         {/* Connection Status */}
         <div className="mb-4 p-3 rounded-lg border">
@@ -558,7 +558,7 @@ export default function FastAPIManager() {
           <div className="p-4 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded">
             {isTauri ? (
               <div>
-                <p>FastAPI server is not running. Click "Start Server" above to start it automatically.</p>
+                <p>Create amazing UI with ease using WireCraft! with our MCP</p>
                 {serverError && (
                   <p className="mt-2 text-red-600">Error: {serverError}</p>
                 )}
