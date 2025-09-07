@@ -89,8 +89,186 @@ class MCPClient:
             self.logger.error(f"Error getting MCP tools: {e}")
             raise
 
-    # process query with session management
-    async def process_query(self, query: str, session_id: Optional[str] = None):
+    # process query with session management and progress callbacks
+    async def process_query_with_progress(self, query: str, session_id: Optional[str] = None, progress_callback=None):
+        try:
+            self.logger.info(f"Processing query with progress: {query}")
+            
+            if progress_callback:
+                await progress_callback({
+                    "status": "initializing",
+                    "message": "Setting up session...",
+                    "progress": 20
+                })
+            
+            # Create or get session
+            if session_id is None:
+                session_id = self.session_manager.create_session(query)
+            
+            # Add user message to session
+            self.session_manager.add_message(session_id, "user", query)
+            
+            # Get session messages for context
+            session_messages = self.session_manager.get_session_messages(session_id)
+            
+            # Convert session messages to working format
+            self.messages = []
+            for msg in session_messages:
+                self.messages.append({
+                    "role": msg.role,
+                    "content": msg.content
+                })
+
+            if progress_callback:
+                await progress_callback({
+                    "status": "calling_llm",
+                    "message": "Calling AI model...",
+                    "progress": 40
+                })
+
+            while True:
+                response = await self.call_llm()
+
+                # the response is a text message
+                if response.content[0].type == "text" and len(response.content) == 1:
+                    assistant_content = response.content[0].text
+                    assistant_message = {
+                        "role": "assistant",
+                        "content": assistant_content,
+                    }
+                    self.messages.append(assistant_message)
+                    
+                    # Add assistant message to session
+                    self.session_manager.add_message(session_id, "assistant", assistant_content)
+                    self.session_manager.update_session_status(session_id, "completed")
+                    
+                    if progress_callback:
+                        await progress_callback({
+                            "status": "completed",
+                            "message": "Query completed successfully",
+                            "progress": 100
+                        })
+                    
+                    await self.log_conversation()
+                    break
+
+                # the response is a tool call
+                if progress_callback:
+                    await progress_callback({
+                        "status": "executing_tools",
+                        "message": "Executing Figma tools...",
+                        "progress": 60
+                    })
+                
+                assistant_content = response.to_dict()["content"]
+                assistant_message = {
+                    "role": "assistant",
+                    "content": assistant_content,
+                }
+                self.messages.append(assistant_message)
+                
+                # Add assistant message to session (serialize tool calls for storage)
+                tool_call_text = f"Tool calls: {json.dumps(assistant_content, indent=2)}"
+                self.session_manager.add_message(session_id, "assistant", tool_call_text)
+                
+                await self.log_conversation()
+
+                tool_count = len([c for c in response.content if c.type == "tool_use"])
+                current_tool = 0
+
+                for content in response.content:
+                    if content.type == "tool_use":
+                        current_tool += 1
+                        tool_name = content.name
+                        tool_args = content.input
+                        tool_use_id = content.id
+                        
+                        if progress_callback:
+                            await progress_callback({
+                                "status": "executing_tool",
+                                "message": f"Executing {tool_name} ({current_tool}/{tool_count})...",
+                                "progress": 60 + (30 * current_tool / tool_count)
+                            })
+                        
+                        self.logger.info(f"Calling tool {tool_name} with args {tool_args}")
+                        try:
+                            result = await self.session.call_tool(tool_name, tool_args)
+                            self.logger.info(f"Tool {tool_name} result: {result}")
+                            print(f"DEBUG: Tool {tool_name} called with args: {tool_args}")
+                            print(f"DEBUG: Tool {tool_name} result: {result}")
+                            
+                            tool_result_message = {
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "tool_result",
+                                        "tool_use_id": tool_use_id,
+                                        "content": result.content,
+                                    }
+                                ],
+                            }
+                            self.messages.append(tool_result_message)
+                            
+                            # Add tool result to session
+                            tool_result_text = f"Tool {tool_name} result: {str(result.content)[:500]}..."
+                            self.session_manager.add_message(session_id, "assistant", tool_result_text)
+                            
+                            await self.log_conversation()
+                        except Exception as e:
+                            self.logger.error(f"Error calling tool {tool_name}: {e}")
+                            print(f"DEBUG: Error calling tool {tool_name}: {e}")
+                            self.session_manager.update_session_status(session_id, "error")
+                            
+                            if progress_callback:
+                                await progress_callback({
+                                    "status": "error",
+                                    "message": f"Error executing {tool_name}: {str(e)}",
+                                    "progress": 100
+                                })
+                            raise
+
+            # Convert messages to JSON-serializable format
+            serializable_messages = []
+            for msg in self.messages:
+                if isinstance(msg, dict):
+                    # Convert complex content to strings
+                    if 'content' in msg and isinstance(msg['content'], list):
+                        content_str = []
+                        for content_item in msg['content']:
+                            if isinstance(content_item, dict):
+                                content_str.append(str(content_item))
+                            else:
+                                content_str.append(str(content_item))
+                        serializable_msg = {
+                            'role': msg.get('role', 'unknown'),
+                            'content': ' '.join(content_str)
+                        }
+                    else:
+                        serializable_msg = {
+                            'role': msg.get('role', 'unknown'),
+                            'content': str(msg.get('content', ''))
+                        }
+                    serializable_messages.append(serializable_msg)
+                else:
+                    serializable_messages.append(str(msg))
+
+            return {
+                "session_id": session_id,
+                "messages": serializable_messages
+            }
+
+        except Exception as e:
+            self.logger.error(f"Error processing query: {e}")
+            if session_id:
+                self.session_manager.update_session_status(session_id, "error")
+            
+            if progress_callback:
+                await progress_callback({
+                    "status": "error", 
+                    "message": f"Query failed: {str(e)}",
+                    "progress": 100
+                })
+            raise
         try:
             self.logger.info(f"Processing query: {query}")
             

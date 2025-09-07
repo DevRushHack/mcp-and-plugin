@@ -1,8 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
 from contextlib import asynccontextmanager
+import asyncio
+import json
+import uuid
 from mcp_client import MCPClient
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
@@ -63,6 +66,69 @@ class QueryRequest(BaseModel):
 
 class SessionRequest(BaseModel):
     session_id: str
+
+
+class WebSocketManager:
+    def __init__(self):
+        self.active_connections: Dict[str, WebSocket] = {}
+    
+    async def connect(self, websocket: WebSocket, client_id: str):
+        await websocket.accept()
+        self.active_connections[client_id] = websocket
+        print(f"WebSocket client {client_id} connected")
+    
+    def disconnect(self, client_id: str):
+        if client_id in self.active_connections:
+            del self.active_connections[client_id]
+            print(f"WebSocket client {client_id} disconnected")
+    
+    def _serialize_for_json(self, obj):
+        """Convert complex objects to JSON-serializable format"""
+        if hasattr(obj, 'to_dict'):
+            return obj.to_dict()
+        elif hasattr(obj, '__dict__'):
+            return obj.__dict__
+        elif isinstance(obj, (list, tuple)):
+            return [self._serialize_for_json(item) for item in obj]
+        elif isinstance(obj, dict):
+            return {key: self._serialize_for_json(value) for key, value in obj.items()}
+        else:
+            return str(obj)
+    
+    async def send_message(self, client_id: str, message: dict):
+        if client_id in self.active_connections:
+            try:
+                # Ensure message is JSON serializable
+                serializable_message = self._serialize_for_json(message)
+                await self.active_connections[client_id].send_text(json.dumps(serializable_message))
+            except Exception as e:
+                print(f"Error sending message to {client_id}: {e}")
+                print(f"Message content: {message}")
+    
+    async def send_to_client(self, client_id: str, message: dict):
+        """Alias for send_message for compatibility"""
+        await self.send_message(client_id, message)
+    
+    async def send_progress(self, client_id: str, progress: dict):
+        await self.send_message(client_id, {
+            "type": "progress",
+            "data": progress
+        })
+    
+    async def send_result(self, client_id: str, result: dict):
+        await self.send_message(client_id, {
+            "type": "result",
+            "data": result
+        })
+    
+    async def send_error(self, client_id: str, error: str):
+        await self.send_message(client_id, {
+            "type": "error",
+            "data": {"error": error}
+        })
+
+
+websocket_manager = WebSocketManager()
 
 
 class Message(BaseModel):
@@ -204,6 +270,86 @@ async def debug_test_figma_tool():
             "success": False,
             "error": str(e)
         }
+
+
+@app.websocket("/ws/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, client_id: str):
+    await websocket_manager.connect(websocket, client_id)
+    try:
+        while True:
+            # Receive message from client
+            data = await websocket.receive_json()
+            message_type = data.get("type")
+            
+            if message_type == "query":
+                query = data.get("query")
+                session_id = data.get("session_id")
+                
+                # Create progress callback that sends updates to this client
+                async def progress_callback(update):
+                    await websocket_manager.send_to_client(client_id, {
+                        "type": "progress",
+                        "data": update
+                    })
+                
+                try:
+                    # Get MCP client from app state
+                    mcp_client = app.state.client
+                    
+                    # Process query with progress updates
+                    result = await mcp_client.process_query_with_progress(
+                        query, 
+                        session_id=session_id, 
+                        progress_callback=progress_callback
+                    )
+                    
+                    # Send final result
+                    await websocket_manager.send_to_client(client_id, {
+                        "type": "result",
+                        "data": result
+                    })
+                    
+                except Exception as e:
+                    await websocket_manager.send_to_client(client_id, {
+                        "type": "error",
+                        "data": {"error": str(e)}
+                    })
+            
+            elif message_type == "ping":
+                await websocket_manager.send_to_client(client_id, {
+                    "type": "pong"
+                })
+                
+    except WebSocketDisconnect:
+        websocket_manager.disconnect(client_id)
+
+
+async def handle_websocket_query(client_id: str, query: str, session_id: Optional[str] = None):
+    """Handle query processing via WebSocket with real-time updates"""
+    try:
+        print(f"WebSocket query from {client_id}: {query}")
+        
+        # Send initial progress
+        await websocket_manager.send_progress(client_id, {
+            "status": "started",
+            "message": "Processing your query...",
+            "progress": 10
+        })
+        
+        # Process the query with the MCP client
+        result = await app.state.client.process_query_with_progress(
+            query, session_id, 
+            progress_callback=lambda progress: asyncio.create_task(
+                websocket_manager.send_progress(client_id, progress)
+            )
+        )
+        
+        # Send final result
+        await websocket_manager.send_result(client_id, result)
+        
+    except Exception as e:
+        print(f"Error processing WebSocket query: {e}")
+        await websocket_manager.send_error(client_id, str(e))
 
 
 if __name__ == "__main__":

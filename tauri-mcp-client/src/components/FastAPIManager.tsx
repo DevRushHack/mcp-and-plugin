@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { fastapiClient } from '../lib/fastapiClient';
+import { websocketClient, ProgressUpdate, QueryResult } from '../lib/websocketClient';
 import { useTauri, useFastAPIStatus } from '../hooks/useTauri';
 
 interface FastAPIStatus {
@@ -33,10 +34,12 @@ interface QueryAccordion {
   messages: ChatMessage[];
   isExpanded: boolean;
   isLoading: boolean;
+  progress?: ProgressUpdate;
 }
 
 export default function FastAPIManager() {
   const [isConnected, setIsConnected] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
   const [query, setQuery] = useState('');
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [accordions, setAccordions] = useState<QueryAccordion[]>([]);
@@ -96,6 +99,26 @@ export default function FastAPIManager() {
     }
   };
 
+  useEffect(() => {
+    // Connect to WebSocket when component mounts
+    const connectWebSocket = async () => {
+      try {
+        await websocketClient.connect();
+        setWsConnected(true);
+      } catch (error) {
+        console.error('Failed to connect to WebSocket:', error);
+        setWsConnected(false);
+      }
+    };
+
+    connectWebSocket();
+
+    // Cleanup on unmount
+    return () => {
+      websocketClient.disconnect();
+    };
+  }, []);
+
   const handleQuery = async () => {
     if (!query.trim()) return;
     
@@ -103,24 +126,62 @@ export default function FastAPIManager() {
     setError(null);
     
     try {
-      const result = await fastapiClient.query(query);
+      // Generate a temporary ID for the accordion
+      const tempId = Date.now().toString();
       
       // Create new accordion for this query
       const newAccordion: QueryAccordion = {
-        id: result.session_id,
+        id: tempId,
         query: query,
         timestamp: new Date().toISOString(),
         messages: [],
         isExpanded: true,
-        isLoading: true
+        isLoading: true,
+        progress: { status: 'initializing', message: 'Starting query...', progress: 0 }
       };
       
       setAccordions(prev => [newAccordion, ...prev]);
-      setQuery(''); // Clear input
+      const currentQuery = query;
+      setQuery(''); // Clear input immediately
       
-      // Load messages for the new session
-      await loadSessionMessages(result.session_id);
-      await loadSessions(); // Refresh sessions list
+      // Send query via WebSocket with callbacks
+      await websocketClient.sendQuery(currentQuery, undefined, {
+        onProgress: (progress: ProgressUpdate) => {
+          setAccordions(prev => prev.map(acc => 
+            acc.id === tempId ? { ...acc, progress } : acc
+          ));
+        },
+        onResult: async (result: QueryResult) => {
+          // Update accordion with real session ID and clear loading state
+          setAccordions(prev => prev.map(acc => 
+            acc.id === tempId 
+              ? { 
+                  ...acc, 
+                  id: result.session_id,
+                  isLoading: false, 
+                  progress: { status: 'completed', message: 'Query completed successfully', progress: 100 }
+                }
+              : acc
+          ));
+          
+          // Load messages for the session
+          await loadSessionMessages(result.session_id);
+          await loadSessions(); // Refresh sessions list
+        },
+        onError: (error: string) => {
+          setAccordions(prev => prev.map(acc => 
+            acc.id === tempId 
+              ? { 
+                  ...acc, 
+                  isLoading: false, 
+                  progress: { status: 'error', message: `Error: ${error}`, progress: 100 }
+                }
+              : acc
+          ));
+          setError(error);
+        }
+      });
+      
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -186,7 +247,7 @@ export default function FastAPIManager() {
       const figmaTest = await fastapiClient.debugTestFigmaTool();
       console.log('Figma Tool Test:', figmaTest);
       
-      alert(`MCP Connected: ${mcpStatus.mcp_connected}\nTools: ${mcpStatus.tools_count}\nFigma Test: ${figmaTest.success ? 'Success' : 'Failed'}`);
+      alert(`MCP Connected: ${mcpStatus.mcp_connected}\\nTools: ${mcpStatus.tools_count}\\nFigma Test: ${figmaTest.success ? 'Success' : 'Failed'}`);
     } catch (err) {
       console.error('Failed to test MCP connection:', err);
       alert('Failed to test MCP connection. Check console for details.');
@@ -227,32 +288,56 @@ export default function FastAPIManager() {
         
         {/* Connection Status */}
         <div className="mb-4 p-3 rounded-lg border">
-          <div className="flex items-center gap-2">
-            <div 
-              className={`w-3 h-3 rounded-full ${
-                serverRunning ? 'bg-green-500' : 'bg-red-500'
-              }`}
-            />
-            <span className={serverRunning ? 'text-green-700' : 'text-red-700'}>
-              {serverRunning ? 'Connected to FastAPI server' : 'Disconnected from FastAPI server'}
-            </span>
+          <div className="flex items-center gap-4 mb-2">
+            <div className="flex items-center gap-2">
+              <div 
+                className={`w-3 h-3 rounded-full ${
+                  serverRunning ? 'bg-green-500' : 'bg-red-500'
+                }`}
+              />
+              <span className={serverRunning ? 'text-green-700' : 'text-red-700'}>
+                {serverRunning ? 'FastAPI Connected' : 'FastAPI Disconnected'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div 
+                className={`w-3 h-3 rounded-full ${
+                  wsConnected ? 'bg-green-500' : 'bg-red-500'
+                }`}
+              />
+              <span className={wsConnected ? 'text-green-700' : 'text-red-700'}>
+                {wsConnected ? 'WebSocket Connected' : 'WebSocket Disconnected'}
+              </span>
+            </div>
             {isTauri && tauriStatus && (
               <span className="text-sm text-gray-500 ml-2">
                 {tauriStatus.pid && `(PID: ${tauriStatus.pid})`}
                 {tauriStatus.port && ` Port: ${tauriStatus.port}`}
               </span>
             )}
-            <div className="ml-auto flex gap-2">
+          </div>
+          <div className="flex gap-2">
               {isTauri && (
                 <>
                   {!serverRunning && (
-                    <button
-                      onClick={handleStartServer}
-                      disabled={serverLoading}
-                      className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
-                    >
-                      {serverLoading ? 'Starting...' : 'Start Server'}
-                    </button>
+                    <>
+                      <button
+                        onClick={handleStartServer}
+                        disabled={serverLoading}
+                        className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
+                      >
+                        {serverLoading ? 'Starting...' : 'Start Server'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          // For combined start, user should use the terminal commands
+                          alert('For combined start, use:\nnpm run dev:all (for web)\nnpm run tauri:dev:all (for Tauri)');
+                        }}
+                        className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+                      >
+                        Start All Guide
+                      </button>
+                    </>
                   )}
                   {serverRunning && (
                     <button
@@ -272,8 +357,8 @@ export default function FastAPIManager() {
                 Refresh
               </button>
             </div>
-          </div>
-          {serverError && (
+        </div>
+        {serverError && (
             <div className="mt-2 p-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded">
               <strong>Error:</strong> {serverError}
             </div>
@@ -401,7 +486,31 @@ export default function FastAPIManager() {
                 {accordion.isExpanded && (
                   <div className="p-4 bg-white border-t">
                     {accordion.isLoading ? (
-                      <div className="text-center py-4 text-gray-500">Loading messages...</div>
+                      <div className="text-center py-4">
+                        {accordion.progress && (
+                          <div className="space-y-3">
+                            <div className="text-sm text-gray-600">{accordion.progress.message}</div>
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div 
+                                className={`h-2 rounded-full transition-all duration-300 ${
+                                  accordion.progress.status === 'error' 
+                                    ? 'bg-red-500' 
+                                    : accordion.progress.status === 'completed'
+                                    ? 'bg-green-500'
+                                    : 'bg-blue-500'
+                                }`}
+                                style={{ width: `${accordion.progress.progress}%` }}
+                              />
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {accordion.progress.progress}% - {accordion.progress.status}
+                            </div>
+                          </div>
+                        )}
+                        {!accordion.progress && (
+                          <div className="text-gray-500">Loading messages...</div>
+                        )}
+                      </div>
                     ) : accordion.messages.length === 0 ? (
                       <div className="text-center py-4 text-gray-500">No messages found</div>
                     ) : (
@@ -456,19 +565,39 @@ export default function FastAPIManager() {
               </div>
             ) : (
               <div>
-                <p>FastAPI server is not running. Please start it using:</p>
-                <code className="block mt-2 p-2 bg-yellow-200 rounded">
-                  npm run fastapi:setup
-                </code>
-                <p className="mt-2">Or run both servers together with:</p>
-                <code className="block mt-2 p-2 bg-yellow-200 rounded">
-                  npm run dev:all
-                </code>
+                <p className="mb-3">FastAPI server is not running. Choose one of these options:</p>
+                
+                <div className="space-y-3">
+                  <div>
+                    <h4 className="font-medium text-gray-800 mb-1">🚀 Combined Start (Recommended)</h4>
+                    <p className="text-sm text-gray-600 mb-2">Start both frontend and backend together:</p>
+                    <code className="block p-2 bg-blue-100 rounded text-sm">
+                      npm run dev:all
+                    </code>
+                    <p className="text-xs text-gray-500 mt-1">Runs Next.js + FastAPI together</p>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-medium text-gray-800 mb-1">🔧 FastAPI Only</h4>
+                    <p className="text-sm text-gray-600 mb-2">Start just the backend server:</p>
+                    <code className="block p-2 bg-yellow-100 rounded text-sm">
+                      npm run fastapi:setup
+                    </code>
+                  </div>
+
+                  <div>
+                    <h4 className="font-medium text-gray-800 mb-1">📱 Tauri Combined</h4>
+                    <p className="text-sm text-gray-600 mb-2">For Tauri desktop app development:</p>
+                    <code className="block p-2 bg-purple-100 rounded text-sm">
+                      npm run tauri:dev:all
+                    </code>
+                  </div>
+                </div>
               </div>
             )}
           </div>
         )}
       </div>
-    </div>
+
   );
 }

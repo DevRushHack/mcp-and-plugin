@@ -1,0 +1,155 @@
+{
+  "id": "7136b017-5464-4b4d-9c4b-762c5b66f7df",
+  "query": "create a food delivery app ui in figma",
+  "timestamp": "2025-09-07T06:52:44.724313",
+  "messages": [
+    {
+      "id": "a28e8b23-0640-4860-9edd-1a75dcbf8773",
+      "role": "user",
+      "content": "create a food delivery app ui in figma",
+      "timestamp": "2025-09-07T06:52:44.725287",
+      "query_id": "7136b017-5464-4b4d-9c4b-762c5b66f7df"
+    },
+    {
+      "id": "a44339bc-6a3c-4dc0-8c00-e954adb1f38a",
+      "role": "assistant",
+      "content": "Tool calls: [\n  {\n    \"type\": \"tool_use\",\n    \"text\": null,\n    \"id\": \"call_m7iPbjoBccPCCtrYeWA5TH46\",\n    \"name\": \"create_frame\",\n    \"input\": {\n      \"x\": 0,\n      \"y\": 0,\n      \"width\": 390,\n      \"height\": 844,\n      \"name\": \"Home\",\n      \"layoutMode\": \"VERTICAL\",\n      \"paddingTop\": 16,\n      \"paddingRight\": 16,\n      \"paddingBottom\": 16,\n      \"paddingLeft\": 16,\n      \"itemSpacing\": 16,\n      \"fillColor\": {\n        \"r\": 1,\n        \"g\": 1,\n        \"b\": 1,\n        \"a\": 1\n      }\n    }\n  }\n]",
+      "timestamp": "2025-09-07T06:53:04.068423",
+      "query_id": "7136b017-5464-4b4d-9c4b-762c5b66f7df"
+    },
+    {
+      "id": "f72b9c27-c24c-4153-b720-00b637ae0933",
+      "role": "assistant",
+      "content": "Tool create_frame result: [TextContent(type='text', text='Created frame \"Home\" with ID: 160:71. Use the ID as the parentId to appendChild inside this frame.', annotations=None, meta=None)]...",
+      "timestamp": "2025-09-07T06:53:04.160648",
+      "query_id": "7136b017-5464-4b4d-9c4b-762c5b66f7df"
+    },
+    {
+      "id": "601c8968-cc59-4059-b579-21d32e95cfee",
+      "role": "assistant",
+      "content": "Tool calls: [\n  {\n    \"type\": \"tool_use\",\n    \"text\": null,\n    \"id\": \"call_4zWbVKEUKY1aR0tw0UYiRJ7x\",\n    \"name\": \"create_text\",\n    \"input\": {\n      \"x\": 16,\n      \"y\": 16,\n      \"text\": \"Deliver to \\u2022 123 Main St\",\n      \"fontSize\": 16,\n      \"fontWeight\": 700,\n      \"fontColor\": {\n        \"r\": 0.12,\n        \"g\": 0.12,\n        \"b\": 0.12,\n        \"a\": 1\n      },\n      \"name\": \"Header/Location\",\n      \"parentId\": \"160:71\"\n    }\n  }\n]",
+      "timestamp": "2025-09-07T06:53:07.104437",
+      "query_id": "7136b017-5464-4b4d-9c4b-762c5b66f7df"
+    },
+    {
+      "id": "d0b0987a-4108-4a9e-b903-39c27f576d7e",
+      "role": "assistant",
+      "content": "Tool create_text result: [TextContent(type='text', text='Created text \"Header/Location\" with ID: 160:72', annotations=None, meta=None)]...",
+      "timestamp": "2025-09-07T06:53:07.203495",
+      "query_id": "7136b017-5464-4b4d-9c4b-762c5b66f7df"
+    },
+    {
+      "id": "5ea3abe4-7261-4f2e-b271-4637c1d32f71",
+      "role": "assistant",
+      "content": "Tool calls: [\n  {\n    \"type\": \"tool_use\",\n    \"text\": null,\n    \"id\": \"call_Jzp6bvujLUMRSZkueZLKIGhb\",\n    \"name\": \"create_frame\",\n    \"input\": {\n      \"x\": 16,\n      \"y\": 56,\n      \"width\": 358,\n      \"height\": 44,\n      \"name\": \"Search Bar\",\n      \"parentId\": \"160:71\",\n      \"layoutMode\": \"HORIZONTAL\",\n      \"paddingTop\": 10,\n      \"paddingRight\": 12,\n      \"paddingBottom\": 10,\n      \"paddingLeft\": 12,\n      \"itemSpacing\": 8,\n      \"counterAxisAlignItems\": \"CENTER\",\n      \"fillColor\": {\n        \"r\": 0.96,\n        \"g\": 0.96,\n        \"b\": 0.96,\n        \"a\": 1\n      },\n      \"strokeColor\": {\n        \"r\": 0.9,\n        \"g\": 0.9,\n        \"b\": 0.9,\n        \"a\": 1\n      },\n      \"strokeWeight\": 1,\n      \"cornerRadius\": 12\n    }\n  }\n]",
+      "timestamp": "2025-09-07T06:53:10.111833",
+      "query_id": "7136b017-5464-4b4d-9c4b-762c5b66f7df"
+    },
+    {
+      "id": "52434a53-7b52-40d8-9e9a-ed119107a0fb",
+      "role": "assistant",
+      "content": "Tool create_frame result: [TextContent(type='text', text='Created frame \"Search Bar\" with ID: 160:73. Use the ID as the parentId to appendChild inside this frame.', annotations=None, meta=None)]...",
+      "timestamp": "2025-09-07T06:53:10.162652",
+      "query_id": "7136b017-5464-4b4d-9c4b-762c5b66f7df"
+    },
+    {
+      "id": "a9321e7a-3a03-4f4e-adca-1026313f9823",
+      "role": "assistant",
+      "content": "Tool calls: [\n  {\n    \"type\": \"tool_use\",\n    \"text\": null,\n    \"id\": \"call_MaS9mlfevnwasLDrssudfWL4\",\n    \"name\": \"create_text\",\n    \"input\": {\n      \"x\": 24,\n      \"y\": 68,\n      \"text\": \"Search restaurants, cuisines...\",\n      \"fontSize\": 14,\n      \"fontWeight\": 400,\n      \"fontColor\": {\n        \"r\": 0.5,\n        \"g\": 0.5,\n        \"b\": 0.5,\n        \"a\": 1\n      },\n      \"name\": \"Search/Placeholder\",\n      \"parentId\": \"160:73\"\n    }\n  }\n]",
+      "timestamp": "2025-09-07T06:53:13.487777",
+      "query_id": "7136b017-5464-4b4d-9c4b-762c5b66f7df"
+    },
+    {
+      "id": "56d34539-8a5a-4ea8-8672-3a364b5a45b0",
+      "role": "assistant",
+      "content": "Tool create_text result: [TextContent(type='text', text='Created text \"Search/Placeholder\" with ID: 160:74', annotations=None, meta=None)]...",
+      "timestamp": "2025-09-07T06:53:13.577585",
+      "query_id": "7136b017-5464-4b4d-9c4b-762c5b66f7df"
+    },
+    {
+      "id": "fddece8c-7f8f-476c-9ba2-df583a158c95",
+      "role": "assistant",
+      "content": "Tool calls: [\n  {\n    \"type\": \"tool_use\",\n    \"text\": null,\n    \"id\": \"call_LIHaTAe3N1ZW29FCbtKtH6Oi\",\n    \"name\": \"create_frame\",\n    \"input\": {\n      \"x\": 16,\n      \"y\": 116,\n      \"width\": 358,\n      \"height\": 120,\n      \"name\": \"Promo Banner\",\n      \"parentId\": \"160:71\",\n      \"layoutMode\": \"VERTICAL\",\n      \"paddingTop\": 12,\n      \"paddingRight\": 12,\n      \"paddingBottom\": 12,\n      \"paddingLeft\": 12,\n      \"itemSpacing\": 8,\n      \"fillColor\": {\n        \"r\": 1,\n        \"g\": 0.95,\n        \"b\": 0.9,\n        \"a\": 1\n      },\n      \"strokeColor\": {\n        \"r\": 1,\n        \"g\": 0.8,\n        \"b\": 0.6,\n        \"a\": 1\n      },\n      \"strokeWeight\": 1\n    }\n  }\n]",
+      "timestamp": "2025-09-07T06:53:16.254749",
+      "query_id": "7136b017-5464-4b4d-9c4b-762c5b66f7df"
+    },
+    {
+      "id": "bbbbc54a-f74c-4ccc-b89c-b21f8c15eea1",
+      "role": "assistant",
+      "content": "Tool create_frame result: [TextContent(type='text', text='Created frame \"Promo Banner\" with ID: 160:75. Use the ID as the parentId to appendChild inside this frame.', annotations=None, meta=None)]...",
+      "timestamp": "2025-09-07T06:53:16.322525",
+      "query_id": "7136b017-5464-4b4d-9c4b-762c5b66f7df"
+    },
+    {
+      "id": "77016069-bb05-4bb3-9605-c5e212cf2c6d",
+      "role": "assistant",
+      "content": "Tool calls: [\n  {\n    \"type\": \"tool_use\",\n    \"text\": null,\n    \"id\": \"call_Icba0XnwHAUT4EZuVhB1ZGVK\",\n    \"name\": \"create_text\",\n    \"input\": {\n      \"x\": 28,\n      \"y\": 128,\n      \"text\": \"Up to 30% OFF\",\n      \"fontSize\": 18,\n      \"fontWeight\": 700,\n      \"fontColor\": {\n        \"r\": 0.26,\n        \"g\": 0.15,\n        \"b\": 0.07,\n        \"a\": 1\n      },\n      \"name\": \"Promo/Title\",\n      \"parentId\": \"160:75\"\n    }\n  }\n]",
+      "timestamp": "2025-09-07T06:53:18.339762",
+      "query_id": "7136b017-5464-4b4d-9c4b-762c5b66f7df"
+    },
+    {
+      "id": "574c2da5-fb03-4969-8c2d-cdf2f1766085",
+      "role": "assistant",
+      "content": "Tool create_text result: [TextContent(type='text', text='Created text \"Promo/Title\" with ID: 160:76', annotations=None, meta=None)]...",
+      "timestamp": "2025-09-07T06:53:18.415647",
+      "query_id": "7136b017-5464-4b4d-9c4b-762c5b66f7df"
+    },
+    {
+      "id": "8707fc43-cde2-49bc-aef2-98cd60494ad4",
+      "role": "assistant",
+      "content": "Tool calls: [\n  {\n    \"type\": \"tool_use\",\n    \"text\": null,\n    \"id\": \"call_mDlS5tpjnP1TS0T0J4qeZHaY\",\n    \"name\": \"create_text\",\n    \"input\": {\n      \"x\": 28,\n      \"y\": 154,\n      \"text\": \"Free delivery on orders over $20 this week.\",\n      \"fontSize\": 12,\n      \"fontWeight\": 400,\n      \"fontColor\": {\n        \"r\": 0.34,\n        \"g\": 0.25,\n        \"b\": 0.2,\n        \"a\": 1\n      },\n      \"name\": \"Promo/Subtitle\",\n      \"parentId\": \"160:75\"\n    }\n  }\n]",
+      "timestamp": "2025-09-07T06:53:21.093742",
+      "query_id": "7136b017-5464-4b4d-9c4b-762c5b66f7df"
+    },
+    {
+      "id": "d327323c-6acd-42bc-818e-0272427bae40",
+      "role": "assistant",
+      "content": "Tool create_text result: [TextContent(type='text', text='Created text \"Promo/Subtitle\" with ID: 160:77', annotations=None, meta=None)]...",
+      "timestamp": "2025-09-07T06:53:21.195391",
+      "query_id": "7136b017-5464-4b4d-9c4b-762c5b66f7df"
+    },
+    {
+      "id": "f5951136-2ddf-4243-860b-db6d49cd6148",
+      "role": "assistant",
+      "content": "Tool calls: [\n  {\n    \"type\": \"tool_use\",\n    \"text\": null,\n    \"id\": \"call_A3LJ3n4wErq9xZK24sCAEzPu\",\n    \"name\": \"create_frame\",\n    \"input\": {\n      \"x\": 16,\n      \"y\": 252,\n      \"width\": 358,\n      \"height\": 24,\n      \"name\": \"Category/Chips\",\n      \"parentId\": \"160:71\",\n      \"layoutMode\": \"HORIZONTAL\",\n      \"itemSpacing\": 8,\n      \"fillColor\": {\n        \"r\": 1,\n        \"g\": 1,\n        \"b\": 1,\n        \"a\": 0\n      }\n    }\n  }\n]",
+      "timestamp": "2025-09-07T06:53:24.302345",
+      "query_id": "7136b017-5464-4b4d-9c4b-762c5b66f7df"
+    },
+    {
+      "id": "c424e5d9-0153-45bb-bd1f-af069544d44a",
+      "role": "assistant",
+      "content": "Tool create_frame result: [TextContent(type='text', text='Created frame \"Category/Chips\" with ID: 160:78. Use the ID as the parentId to appendChild inside this frame.', annotations=None, meta=None)]...",
+      "timestamp": "2025-09-07T06:53:24.374022",
+      "query_id": "7136b017-5464-4b4d-9c4b-762c5b66f7df"
+    },
+    {
+      "id": "e80bf4ca-9413-4185-a9e4-4f633f5558a1",
+      "role": "assistant",
+      "content": "Tool calls: [\n  {\n    \"type\": \"tool_use\",\n    \"text\": null,\n    \"id\": \"call_uV5FYU1E9tq55WO5ySEHKyAR\",\n    \"name\": \"create_frame\",\n    \"input\": {\n      \"x\": 16,\n      \"y\": 252,\n      \"width\": 88,\n      \"height\": 32,\n      \"name\": \"Chip\",\n      \"parentId\": \"160:78\",\n      \"layoutMode\": \"HORIZONTAL\",\n      \"paddingTop\": 6,\n      \"paddingRight\": 10,\n      \"paddingBottom\": 6,\n      \"paddingLeft\": 10,\n      \"itemSpacing\": 8,\n      \"counterAxisAlignItems\": \"CENTER\",\n      \"fillColor\": {\n        \"r\": 0.95,\n        \"g\": 0.98,\n        \"b\": 1,\n        \"a\": 1\n      },\n      \"strokeColor\": {\n        \"r\": 0.75,\n        \"g\": 0.85,\n        \"b\": 1,\n        \"a\": 1\n      },\n      \"strokeWeight\": 1\n    }\n  }\n]",
+      "timestamp": "2025-09-07T06:53:27.618901",
+      "query_id": "7136b017-5464-4b4d-9c4b-762c5b66f7df"
+    },
+    {
+      "id": "3d7c6713-ad7d-4b29-a47d-6424af49fc1a",
+      "role": "assistant",
+      "content": "Tool create_frame result: [TextContent(type='text', text='Created frame \"Chip\" with ID: 160:79. Use the ID as the parentId to appendChild inside this frame.', annotations=None, meta=None)]...",
+      "timestamp": "2025-09-07T06:53:27.661205",
+      "query_id": "7136b017-5464-4b4d-9c4b-762c5b66f7df"
+    },
+    {
+      "id": "6bb81b4c-481b-4018-b9c1-5aaead5e03c5",
+      "role": "assistant",
+      "content": "Tool calls: [\n  {\n    \"type\": \"tool_use\",\n    \"text\": null,\n    \"id\": \"call_VOvMs2Gl4RvQxYdZfEviEbBH\",\n    \"name\": \"create_text\",\n    \"input\": {\n      \"x\": 26,\n      \"y\": 258,\n      \"text\": \"Burger\",\n      \"fontSize\": 12,\n      \"fontWeight\": 600,\n      \"fontColor\": {\n        \"r\": 0.16,\n        \"g\": 0.29,\n        \"b\": 0.48,\n        \"a\": 1\n      },\n      \"name\": \"Chip/Label\",\n      \"parentId\": \"160:79\"\n    }\n  }\n]",
+      "timestamp": "2025-09-07T06:53:30.690000",
+      "query_id": "7136b017-5464-4b4d-9c4b-762c5b66f7df"
+    },
+    {
+      "id": "0556efcb-9931-4fea-aa8c-e6a89cc09f86",
+      "role": "assistant",
+      "content": "Tool create_text result: [TextContent(type='text', text='Created text \"Chip/Label\" with ID: 160:80', annotations=None, meta=None)]...",
+      "timestamp": "2025-09-07T06:53:30.739226",
+      "query_id": "7136b017-5464-4b4d-9c4b-762c5b66f7df"
+    }
+  ],
+  "status": "error"
+}
